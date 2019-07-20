@@ -8,16 +8,16 @@
  Green POS to Arduino pin 10
 */
 
-#define NUM_LEDS 60
+#define NUM_LEDS 30
 
-#define DATA_PIN 7
+#define DATA_PIN 5
 
 // Define the array of leds
 CRGB leds[NUM_LEDS];
 
 // Module Pins
-#define trigPin 13
-#define echoPin 12
+#define trigPin 7
+#define echoPin 6
 
 // Thresholds (in CM)
 long SECTION_SIZE = 30;
