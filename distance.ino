@@ -1,92 +1,165 @@
-#define trigPin 7
-#define echoPin 6
-#define led 13
-#define led2 12
-#define led3 11
-#define led4 10
-#define led5 9
-#define led6 8
-#define buzzer 3
-5
+int LED = 7; // Use the onboard Uno LED
+int isObstaclePin = 2;  // This is our input pin
+int isObstacle = HIGH;  // HIGH MEANS NO OBSTACLE
+
+#define buzzer 8
+#include "pitches.h"
+
+// notes in the melody:
+int melody[] = {
+  NOTE_C7, NOTE_C7, NOTE_C7, NOTE_C7, NOTE_D7, NOTE_C7, NOTE_D7, NOTE_E7
+};
+
+// note durations: 4 = quarter note, 8 = eighth note, etc.:
+int noteDurations[] = {
+  4, 8, 8, 4, 4, 4, 4, 2
+};
+
+
+#include <FastLED.h>
+
+//#define DEBUG
+#define NUM_LEDS 30
+#define DATA_PIN 7
+#define COLOR_ORDER GRB
+#define LED_TYPE    WS2812B
+#define POT A0
+
+// Define the array of leds
+CRGB leds[NUM_LEDS];
+
+int onePos = 2;
+int twoPos = 2;
+byte oneDir = 0;
+byte twoDir = 0;
+
+
+
 
 
 void setup() {
-  Serial.begin (9600);
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  pinMode(led, OUTPUT);
-  pinMode(led2, OUTPUT);
-  pinMode(led3, OUTPUT);
-  pinMode(led4, OUTPUT);
-  pinMode(led5, OUTPUT);
-  pinMode(led6, OUTPUT);
+  pinMode(LED, OUTPUT);
+  pinMode(isObstaclePin, INPUT);
   pinMode(buzzer, OUTPUT);
- 
+
+  Serial.begin(9600);
+
+#ifdef DEBUG
+  Serial.begin(9600);
+#endif
+
+  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
+
 }
+
+  
 
 void loop() {
-  long duration, distance;
-  digitalWrite(trigPin, LOW); 
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance = (duration/2) / 29.1;
+  isObstacle = digitalRead(isObstaclePin);
+  if (isObstacle == LOW)
+  {
+    Serial.println("OBSTACLE!!, OBSTACLE!!");
+    digitalWrite(LED, HIGH);
+
+    //VICTORY MELODY
+    // iterate over the notes of the melody:
+    for (int thisNote = 0; thisNote < 8; thisNote++) {
+
+      // to calculate the note duration, take one second divided by the note type.
+      //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+      int noteDuration = 1000 / noteDurations[thisNote];
+      tone(8, melody[thisNote], noteDuration);
+
+      // to distinguish the notes, set a minimum time between them.
+      // the note's duration + 30% seems to work well:
+      int pauseBetweenNotes = noteDuration * 1.30;
+      delay(pauseBetweenNotes);
+      // stop the tone playing:
+      noTone(8);
+    }
  
 
-  if (distance <= 30) {
-    digitalWrite(led, HIGH);
-    sound = 250;
-}
-  else {
-    digitalWrite(led,LOW);
+  // turn on the green and blue LEDs to draw the current
+  // position of each line along the strip
+  leds[onePos] = CRGB(0, 255, 0);
+  leds[max(onePos - 1, 0)] = CRGB(0, 255, 0);
+  leds[min(onePos + 1, NUM_LEDS - 1)] = CRGB(0, 255, 0);
+
+  leds[twoPos] = CRGB(0, 0, 255);
+  leds[max(twoPos - 1, 0)] = CRGB(0, 0, 255);
+  leds[min(twoPos + 1, NUM_LEDS - 1)] = CRGB(0, 0, 255);
+
+  FastLED.show();
+  delay(150);
+
+  // turn all LEDs off so they can be re-drawn on the next loop
+  // in the next calculated position
+  leds[onePos] = CRGB(0, 0, 0);
+  leds[max(onePos - 1, 0)] = CRGB(0, 0, 0);
+  leds[min(onePos + 1, NUM_LEDS - 1)] = CRGB(0, 0, 0);
+
+  leds[twoPos] = CRGB(0, 0, 0);
+  leds[max(twoPos - 1, 0)] = CRGB(0, 0, 0);
+  leds[min(twoPos + 1, NUM_LEDS - 1)] = CRGB(0, 0, 0);
+
+  FastLED.show();
+
+#ifdef DEBUG
+  Serial.print("One Direction: ");
+  Serial.println(oneDir);
+  Serial.print("One Position: ");
+  Serial.println(onePos);
+  //Serial.println();
+
+  Serial.print("Two Direction: ");
+  Serial.println(twoDir);
+  Serial.print("Two Position: ");
+  Serial.println(twoPos);
+  Serial.println();
+#endif
+
+  // calculate the next position of each LED line by advancing the
+  // LED position in the forward or reverse direction as required.
+  // if the line reaches the end of the LED strip, it is time to
+  // change its direction.
+  if (oneDir == 0) {     // if going forward
+    onePos += 4;
+    if (onePos >= NUM_LEDS) {
+      onePos = NUM_LEDS - 1;
+      oneDir = 1;  // go in reverse direction
+    }
   }
-  if (distance < 25) {
-      digitalWrite(led2, HIGH);
-      sound = 260;
-}
-  else {
-      digitalWrite(led2, LOW);
+  // else {   //if going reverse
+  if (oneDir == 1) {
+    onePos -= 4;
+    if (onePos <= 0) {
+      onePos = 0;
+      oneDir = 0;  // go in forward direction
+    }
   }
-  if (distance < 20) {
-      digitalWrite(led3, HIGH);
-      sound = 270;
-} 
-  else {
-    digitalWrite(led3, LOW);
+
+  if (twoDir == 0) {     // if going forward
+    twoPos += 3;
+    if (twoPos >= NUM_LEDS) {
+      twoPos = NUM_LEDS - 1;
+      twoDir = 1;  // go in reverse direction
+    }
   }
-  if (distance < 15) {
-    digitalWrite(led4, HIGH);
-    sound = 280;
-}
-  else {
-    digitalWrite(led4,LOW);
+  //else {   //if going reverse
+  if (twoDir == 1) {
+    twoPos -= 3;
+    if (twoPos <= 0) {
+      twoPos = 0;
+      twoDir = 0;  // go in forward direction
+    }
   }
-  if (distance < 10) {
-    digitalWrite(led5, HIGH);
-    sound = 290;
-}
-  else {
-    digitalWrite(led5,LOW);
+
+
   }
-  if (distance < 5) {
-    digitalWrite(led6, HIGH);
-    sound = 300;
-}
-  else {
-    digitalWrite(led6,LOW);
+  else
+  {
+    Serial.println("clear");
+    digitalWrite(LED, LOW);
   }
- 
-  if (distance > 30 || distance <= 0){
-    Serial.println("Out of range");
-    noTone(buzzer);
-  }
-  else {
-    Serial.print(distance);
-    Serial.println(" cm");
-    tone(buzzer, sound);
-   
-  }
-  delay(500);
+  delay(200);
 }
