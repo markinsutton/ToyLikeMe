@@ -1,131 +1,94 @@
-#include <FastLED.h>
 
-#define LED_PIN     7
-#define NUM_LEDS    12
-#define BRIGHTNESS  64
-#define LED_TYPE    WS2811
-#define COLOR_ORDER GRB
-CRGB leds[NUM_LEDS];
+// let an effect run for a predefined time on Button press
 
-#define UPDATES_PER_SECOND 100
+#include <Adafruit_NeoPixel.h>
 
-CRGBPalette16 currentPalette;
-TBlendType    currentBlending;
+const int buttonPin = 2;                    // a button connected from this pin to GND
+const int ledPin = 7;                       // the pin where the pixels are connected
+const byte ledCount = 27;                   // How many NeoPixels are attached to the Arduino?
+const unsigned long durance = 1000;         // on time in milliseconds
+unsigned long lastMillis;                   // stores the timestamp when the button gets pressed
+bool isOn = false;                          // stores if the pixel is currently on (... if the effect runs)
 
-extern CRGBPalette16 myRedWhiteBluePalette;
-extern const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM;
+unsigned long lastUpdate = 0 ;        // for millis() when last update occurred
+unsigned long patternInterval = 20 ;  // time between steps in the pattern
 
+
+// Declare our NeoPixel strip object:
+Adafruit_NeoPixel strip(ledCount, ledPin, NEO_GRB + NEO_KHZ800);
 
 void setup() {
-    delay( 3000 ); // power-up safety delay
-    FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-    FastLED.setBrightness(  BRIGHTNESS );
-    
-    currentPalette = RainbowColors_p;
-    currentBlending = LINEARBLEND;
+  pinMode(buttonPin, INPUT_PULLUP);   // if you don't have external resistors use the internal pullups with reversed logic
+  strip.begin();                      // INITIALIZE NeoPixel strip object (REQUIRED)
+  strip.show();                       // Turn OFF all pixels ASAP
+  strip.setBrightness(50);            // Set BRIGHTNESS to about 1/5 (max = 255)
+  randomSeed(analogRead(0));          // recommended if you use random function
+  Serial.begin(115200);               // for debug purposes we need the serial monitor
+  Serial.println(F("wait for button press"));
 }
 
-
-void loop()
-{
-    ChangePalettePeriodically();
-    
-    static uint8_t startIndex = 0;
-    startIndex = startIndex + 1; /* motion speed */
-    
-    FillLEDsFromPaletteColors( startIndex);
-    
-    FastLED.show();
-    FastLED.delay(1000 / UPDATES_PER_SECOND);
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if (WheelPos < 85) {
+    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if (WheelPos < 170) {
+    WheelPos -= 85;
+    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
 }
 
-void FillLEDsFromPaletteColors( uint8_t colorIndex)
-{
-    uint8_t brightness = 255;
-    
-    for( int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = ColorFromPalette( currentPalette, colorIndex, brightness, currentBlending);
-        colorIndex += 3;
+void theaterChaseRainbow() { // modified from Adafruit example to make it a state machine
+  static int j = 0, q = 0;
+  static boolean on = true;
+  if (on) {
+    for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
+      strip.setPixelColor(i + q, Wheel( (i + j) % 255)); //turn every third pixel on
     }
-}
-
-
-void ChangePalettePeriodically()
-{
-    uint8_t secondHand = (millis() / 1000) % 60;
-    static uint8_t lastSecond = 99;
-    
-    if( lastSecond != secondHand) {
-        lastSecond = secondHand;
-        if( secondHand ==  0)  { currentPalette = RainbowColors_p;         currentBlending = LINEARBLEND; }
-        if( secondHand == 10)  { currentPalette = RainbowStripeColors_p;   currentBlending = NOBLEND;  }
-        if( secondHand == 15)  { currentPalette = RainbowStripeColors_p;   currentBlending = LINEARBLEND; }
-        if( secondHand == 20)  { SetupPurpleAndGreenPalette();             currentBlending = LINEARBLEND; }
-        if( secondHand == 25)  { SetupTotallyRandomPalette();              currentBlending = LINEARBLEND; }
-        if( secondHand == 30)  { SetupBlackAndWhiteStripedPalette();       currentBlending = NOBLEND; }
-        if( secondHand == 35)  { SetupBlackAndWhiteStripedPalette();       currentBlending = LINEARBLEND; }
-        if( secondHand == 40)  { currentPalette = CloudColors_p;           currentBlending = LINEARBLEND; }
-        if( secondHand == 45)  { currentPalette = PartyColors_p;           currentBlending = LINEARBLEND; }
-        if( secondHand == 50)  { currentPalette = myRedWhiteBluePalette_p; currentBlending = NOBLEND;  }
-        if( secondHand == 55)  { currentPalette = myRedWhiteBluePalette_p; currentBlending = LINEARBLEND; }
+  }
+  else {
+    for (uint16_t i = 0; i < strip.numPixels(); i = i + 3) {
+      strip.setPixelColor(i + q, 0);      //turn every third pixel off
     }
+  }
+  on = !on; // toggel pixelse on or off for next time
+  strip.show(); // display
+  q++; // update the q variable
+  if (q >= 3 ) { // if it overflows reset it and update the J variable
+    q = 0;
+    j++;
+    if (j >= 256) j = 0;
+  }
+  lastUpdate = millis(); // time for next change to the display
 }
 
-void SetupTotallyRandomPalette()
+void goBlack()
 {
-    for( int i = 0; i < 16; i++) {
-        currentPalette[i] = CHSV( random8(), 255, random8());
-    }
-}
-
-
-void SetupBlackAndWhiteStripedPalette()
-{
-    // 'black out' all 16 palette entries...
-    fill_solid( currentPalette, 16, CRGB::Black);
-    // and set every fourth one to white.
-    currentPalette[0] = CRGB::White;
-    currentPalette[4] = CRGB::White;
-    currentPalette[8] = CRGB::White;
-    currentPalette[12] = CRGB::White;
-    
-}
-
-
-void SetupPurpleAndGreenPalette()
-{
-    CRGB purple = CHSV( HUE_PURPLE, 255, 255);
-    CRGB green  = CHSV( HUE_GREEN, 255, 255);
-    CRGB black  = CRGB::Black;
-    
-    currentPalette = CRGBPalette16(
-                                   green,  green,  black,  black,
-                                   purple, purple, black,  black,
-                                   green,  green,  black,  black,
-                                   purple, purple, black,  black );
+  Serial.println(F("Switch off all pixels"));
+  for (uint16_t i = 0; i < strip.numPixels(); i++)
+  {
+    strip.setPixelColor(i, 0);
+  }
+  strip.show();
 }
 
 
+void loop() {
+  if (!digitalRead(buttonPin) && !isOn)         // check for button press to GND (inversed - therefore the !)
+  {
+    Serial.println(F("Switch on by button press"));
+    isOn = true;
+    lastMillis = millis();
+  }
 
-const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM =
-{
-    CRGB::Red,
-    CRGB::Gray, // 'white' is too bright compared to red and blue
-    CRGB::Blue,
-    CRGB::Black,
-    
-    CRGB::Red,
-    CRGB::Gray,
-    CRGB::Blue,
-    CRGB::Black,
-    
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Gray,
-    CRGB::Gray,
-    CRGB::Blue,
-    CRGB::Blue,
-    CRGB::Black,
-    CRGB::Black
-};
+  if (millis() - lastMillis >= durance && isOn ) // Check for time out
+  {
+    Serial.println(F("Switch off by time"));
+    goBlack();
+    isOn = false;
+  }
 
+   if(isOn &&(millis() - lastUpdate > patternInterval))  theaterChaseRainbow(); // calls pattern update if necessary
+}
