@@ -1,7 +1,20 @@
 
-// let an effect run for a predefined time on Button press
+// ToyLikeMe Arch
 
 #include <Adafruit_NeoPixel.h>
+#define buzzer 8
+#include "pitches.h"
+
+// notes in the melody:
+int melody[] = {
+  NOTE_C7, NOTE_C7, NOTE_C7, NOTE_C7, NOTE_D7, NOTE_C7, NOTE_D7, NOTE_E7
+};
+
+// note durations: 4 = quarter note, 8 = eighth note, etc.:
+int noteDurations[] = {
+  4, 8, 8, 4, 4, 4, 4, 2
+};
+
 
 const int buttonPin = 2;                    // a button connected from this pin to GND
 const int ledPin = 7;                       // the pin where the pixels are connected
@@ -19,6 +32,7 @@ Adafruit_NeoPixel strip(ledCount, ledPin, NEO_GRB + NEO_KHZ800);
 
 void setup() {
   pinMode(buttonPin, INPUT_PULLUP);   // if you don't have external resistors use the internal pullups with reversed logic
+  pinMode(buzzer, OUTPUT);
   strip.begin();                      // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();                       // Turn OFF all pixels ASAP
   strip.setBrightness(50);            // Set BRIGHTNESS to about 1/5 (max = 255)
@@ -63,7 +77,8 @@ void theaterChaseRainbow() { // modified from Adafruit example to make it a stat
   }
   lastUpdate = millis(); // time for next change to the display
 }
-
+ 
+    
 void goBlack()
 {
   Serial.println(F("Switch off all pixels"));
@@ -79,16 +94,36 @@ void loop() {
   if (!digitalRead(buttonPin) && !isOn)         // check for button press to GND (inversed - therefore the !)
   {
     Serial.println(F("Switch on by button press"));
-    isOn = true;
+    isOn = true;   
     lastMillis = millis();
-  }
 
+    }
+    
+
+  
   if (millis() - lastMillis >= durance && isOn ) // Check for time out
   {
     Serial.println(F("Switch off by time"));
     goBlack();
     isOn = false;
+
+        //VICTORY MELODY
+    for (int thisNote = 0; thisNote < 8; thisNote++) {
+      int noteDuration = 1000 / noteDurations[thisNote];
+      tone(8, melody[thisNote], noteDuration);
+      // to distinguish the notes, set a minimum time between them.
+      // the note's duration + 30% seems to work well:
+      int pauseBetweenNotes = noteDuration * 1.30;
+      delay(pauseBetweenNotes);
+ 
+    }
+    // stop the tone playing:
+      noTone(8);
   }
 
    if(isOn &&(millis() - lastUpdate > patternInterval))  theaterChaseRainbow(); // calls pattern update if necessary
-}
+  }
+
+  
+
+   
