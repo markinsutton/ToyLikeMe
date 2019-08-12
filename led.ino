@@ -71,13 +71,15 @@ void goBlack()
   Serial.println(F("Switch off all pixels"));
   for (uint16_t i = 0; i < strip.numPixels(); i++)
   {
-    strip.setPixelColor(i, 0);
+    strip.setPixelColor(i, strip.Color(0,150,0));
   }
   strip.show();
-}
+    }   
 
 
 void loop() {
+
+  
   if (!digitalRead(buttonPin) && !isOn)         // check for button press to GND (inversed - therefore the !)
   {
     Serial.println(F("Switch on by button press"));
@@ -86,20 +88,18 @@ void loop() {
 
     }
     
-
   
   if (millis() - lastMillis >= durance && isOn ) // Check for time out
   {
     Serial.println(F("Switch off by time"));
     goBlack();
     isOn = false;
-
-
   }
+
+
 
    if(isOn &&(millis() - lastUpdate > patternInterval))  theaterChaseRainbow(); // calls pattern update if necessary
-  }
-
   
 
+}
    
